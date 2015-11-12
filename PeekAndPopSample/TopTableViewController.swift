@@ -13,12 +13,8 @@ class TopTableViewController: UIViewController {
     // MARK: - Outlet property
     @IBOutlet weak var tableView: UITableView!
 
-    // MARK: - Override method
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-    }
-
+    var viewControllerPreviewings = [NSIndexPath : UIViewControllerPreviewing]()
+    
     // MARK: - Private method
     private func backgroundColorWithIndexPath(indexPath: NSIndexPath) -> UIColor {
         switch indexPath.row % 5 {
@@ -59,7 +55,7 @@ class TopTableViewController: UIViewController {
 extension TopTableViewController: UITableViewDataSource {
 
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 100
+        return 400
     }
 
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
@@ -71,13 +67,7 @@ extension TopTableViewController: UITableViewDataSource {
         
         cell.backgroundColor = self.backgroundColorWithIndexPath(indexPath)
         cell.textLabel?.textColor = self.fontColorWithIndexPath(indexPath)
-        
-        // For peek and pop
-        if #available(iOS 9.0, *) {
-            if UIApplication.sharedApplication().keyWindow?.traitCollection.forceTouchCapability == .Available {
-                self.registerForPreviewingWithDelegate(self, sourceView: cell)
-            }
-        }
+
         return cell
     }
     
@@ -85,7 +75,7 @@ extension TopTableViewController: UITableViewDataSource {
 
 // MARK: - UITableViewDelegate
 extension TopTableViewController: UITableViewDelegate {
-    
+
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         self.tableView.deselectRowAtIndexPath(indexPath, animated: true)
         
@@ -98,6 +88,30 @@ extension TopTableViewController: UITableViewDelegate {
         popedViewController.backgroundColor = self.backgroundColorWithIndexPath(indexPath)
         
         self.navigationController?.pushViewController(popedViewController, animated: true)
+    }
+
+    func tableView(tableView: UITableView, willDisplayCell cell: UITableViewCell, forRowAtIndexPath indexPath: NSIndexPath) {
+        
+        // For peek and pop
+        if #available(iOS 9.0, *) {
+            if UIApplication.sharedApplication().keyWindow?.traitCollection.forceTouchCapability == .Available {
+                self.viewControllerPreviewings[indexPath] = self.registerForPreviewingWithDelegate(self, sourceView: cell)
+            }
+        }
+    }
+    
+    func tableView(tableView: UITableView, didEndDisplayingCell cell: UITableViewCell, forRowAtIndexPath indexPath: NSIndexPath) {
+
+        // For peek and pop
+        if #available(iOS 9.0, *) {
+            if UIApplication.sharedApplication().keyWindow?.traitCollection.forceTouchCapability == .Available {
+                guard let previewing = self.viewControllerPreviewings[indexPath] else {
+                    return
+                }
+                self.unregisterForPreviewingWithContext(previewing)
+                self.viewControllerPreviewings.removeValueForKey(indexPath)
+            }
+        }
     }
 }
 
@@ -117,16 +131,16 @@ extension TopTableViewController: UIViewControllerPreviewingDelegate {
             return nil
         }
 
-        // POINT!
-        self.tableView.reloadData()
-        
         popedViewController.labelString = String(indexPath.row)
         popedViewController.fontColor = self.fontColorWithIndexPath(indexPath)
         popedViewController.backgroundColor = self.backgroundColorWithIndexPath(indexPath)
+        popedViewController.preferredContentSize = CGSize(width: 0, height: 0)
+        
+        previewingContext.sourceRect = cell.bounds
 
         return popedViewController
     }
-    
+
     // Pop
     func previewingContext(previewingContext: UIViewControllerPreviewing, commitViewController viewControllerToCommit: UIViewController) {
 
